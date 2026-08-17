@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useContext } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { AuthContext } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import HeroesScreen from '../screens/HeroesScreen';
@@ -19,8 +21,16 @@ function AuthStack() {
 }
 
 function AppStack() {
+  const { logout } = useContext(AuthContext);
+
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#1a1f3a' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { color: '#fff', fontWeight: '600' },
+      }}
+    >
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Heroes" component={HeroesScreen} />
       <Stack.Screen name="HeroDetail" component={HeroDetailScreen} />
@@ -31,12 +41,20 @@ function AppStack() {
 }
 
 export default function Navigation() {
-  // Token handling will be implemented in Fase 3; for now default to showing Login
-  const [token] = useState(null);
+  const { state } = useContext(AuthContext);
+  const { isLoading, isSignedIn } = state;
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a0e27' }}>
+        <ActivityIndicator size="large" color="#e74c3c" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
-      {token ? <AppStack /> : <AuthStack />}
+      {isSignedIn ? <AppStack /> : <AuthStack />}
     </NavigationContainer>
   );
 }
