@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useFocusEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../services/api';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function FavoritesScreen({ navigation }) {
   const [heroes, setHeroes] = useState([]);
