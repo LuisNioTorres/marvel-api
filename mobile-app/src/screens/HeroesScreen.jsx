@@ -1,15 +1,37 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import apiClient from '../services/api';
+import { AuthContext } from '../context/AuthContext';
 
 export default function HeroesScreen({ navigation }) {
+  const { state } = useContext(AuthContext);
+  const isAdmin = state.user?.rol === 'ADMIN';
+
   const [heroes, setHeroes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Botón "+ Crear héroe" en el header, solo para ADMIN
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () =>
+        isAdmin ? (
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('HeroForm', { mode: 'create' })}
+          >
+            <Text style={styles.headerButtonText}>+ Crear</Text>
+          </TouchableOpacity>
+        ) : null,
+    });
+  }, [navigation, isAdmin]);
+
+  // Recargar al montar y cada vez que la pantalla recibe foco (tras crear/editar/eliminar)
   useEffect(() => {
     fetchHeroes();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', fetchHeroes);
+    return unsubscribe;
+  }, [navigation]);
 
   async function fetchHeroes() {
     setLoading(true);
@@ -181,5 +203,16 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#888',
+  },
+  headerButton: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  headerButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

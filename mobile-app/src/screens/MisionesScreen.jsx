@@ -1,15 +1,70 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import apiClient from '../services/api';
+import { AuthContext } from '../context/AuthContext';
 
-export default function MisionesScreen() {
+export default function MisionesScreen({ navigation }) {
+  const { state } = useContext(AuthContext);
+  const isAdmin = state.user?.rol === 'ADMIN';
+
   const [misiones, setMisiones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
+  // Botón "+ Crear misión" en el header, solo para ADMIN
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () =>
+        isAdmin ? (
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('MisionForm', { mode: 'create' })}
+          >
+            <Text style={styles.headerButtonText}>+ Crear</Text>
+          </TouchableOpacity>
+        ) : null,
+    });
+  }, [navigation, isAdmin]);
+
+  // Recargar al montar y cada vez que la pantalla recibe foco (tras crear/editar/eliminar)
   useEffect(() => {
     fetchMisiones();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', fetchMisiones);
+    return unsubscribe;
+  }, [navigation]);
+
+  function handleDelete(mision) {
+    Alert.alert(
+      'Eliminar misión',
+      `¿Seguro que deseas eliminar "${mision.titulo}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => confirmDelete(mision.id) },
+      ]
+    );
+  }
+
+  async function confirmDelete(id) {
+    setDeletingId(id);
+    try {
+      await apiClient.delete(`/misiones/${id}`);
+      fetchMisiones();
+    } catch (err) {
+      let msg = 'Error al eliminar la misión. Intenta nuevamente.';
+      if (err.response?.status === 403) {
+        msg = 'No tienes permisos para realizar esta acción.';
+      } else if (err.response?.status === 401) {
+        msg = 'Sesión expirada. Inicia sesión nuevamente.';
+      } else if (err.response?.data?.error) {
+        msg = err.response.data.error;
+      }
+      Alert.alert('No se pudo eliminar', msg);
+      console.error('Error deleting mission:', err);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function fetchMisiones() {
     setLoading(true);
@@ -114,6 +169,33 @@ export default function MisionesScreen() {
           <View style={styles.heroInfo}>
             <Text style={styles.heroLabel}>Asignado a:</Text>
             <Text style={styles.heroName}>{item.superheroe_nombre}</Text>
+          </View>
+        )}
+
+        {isAdmin && (
+          <View style={styles.adminActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => navigation.navigate('MisionForm', { mode: 'edit', mision: item })}
+              disabled={deletingId === item.id}
+            >
+              <Text style={styles.actionButtonText}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                styles.deleteButton,
+                deletingId === item.id && styles.buttonDisabled,
+              ]}
+              onPress={() => handleDelete(item)}
+              disabled={deletingId === item.id}
+            >
+              {deletingId === item.id ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.actionButtonText}>Eliminar</Text>
+              )}
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -267,5 +349,47 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#888',
+  },
+  headerButton: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  headerButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  adminActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editButton: {
+    backgroundColor: '#3498db',
+    marginRight: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#e74c3c',
+    marginLeft: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

@@ -7,8 +7,10 @@ import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import HeroesScreen from '../screens/HeroesScreen';
 import HeroDetailScreen from '../screens/HeroDetailScreen';
+import HeroFormScreen from '../screens/HeroFormScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import MisionesScreen from '../screens/MisionesScreen';
+import MisionFormScreen from '../screens/MisionFormScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,8 +36,10 @@ function AppStack() {
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Heroes" component={HeroesScreen} />
       <Stack.Screen name="HeroDetail" component={HeroDetailScreen} />
+      <Stack.Screen name="HeroForm" component={HeroFormScreen} />
       <Stack.Screen name="Favorites" component={FavoritesScreen} />
       <Stack.Screen name="Misiones" component={MisionesScreen} />
+      <Stack.Screen name="MisionForm" component={MisionFormScreen} />
     </Stack.Navigator>
   );
 }

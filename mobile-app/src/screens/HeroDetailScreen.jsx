@@ -1,19 +1,62 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import React, { useContext, useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../services/api';
+import { AuthContext } from '../context/AuthContext';
 
 export default function HeroDetailScreen({ route, navigation }) {
   const { id } = route.params;
+  const { state } = useContext(AuthContext);
+  const isAdmin = state.user?.rol === 'ADMIN';
+
   const [hero, setHero] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetchHeroDetail();
     checkIfFavorite();
   }, [id]);
+
+  // Recargar el detalle al enfocar la pantalla (p. ej. tras editar)
+  useEffect(() => {
+    fetchHeroDetail();
+    const unsubscribe = navigation.addListener('focus', fetchHeroDetail);
+    return unsubscribe;
+  }, [navigation, id]);
+
+  function handleDelete() {
+    Alert.alert(
+      'Eliminar héroe',
+      `¿Seguro que deseas eliminar a "${hero?.nombre}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: confirmDelete },
+      ]
+    );
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
+    try {
+      await apiClient.delete(`/heroes/${id}`);
+      navigation.goBack();
+    } catch (err) {
+      let msg = 'Error al eliminar el héroe. Intenta nuevamente.';
+      if (err.response?.status === 403) {
+        msg = 'No tienes permisos para realizar esta acción.';
+      } else if (err.response?.status === 401) {
+        msg = 'Sesión expirada. Inicia sesión nuevamente.';
+      } else if (err.response?.data?.error) {
+        msg = err.response.data.error;
+      }
+      Alert.alert('No se pudo eliminar', msg);
+      console.error('Error deleting hero:', err);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function checkIfFavorite() {
     try {
@@ -150,6 +193,29 @@ export default function HeroDetailScreen({ route, navigation }) {
             </View>
           )}
         </View>
+
+        {isAdmin && (
+          <View style={styles.adminActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => navigation.navigate('HeroForm', { mode: 'edit', hero })}
+              disabled={deleting}
+            >
+              <Text style={styles.actionButtonText}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton, deleting && styles.buttonDisabled]}
+              onPress={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.actionButtonText}>Eliminar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -258,5 +324,32 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#888',
+  },
+  adminActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editButton: {
+    backgroundColor: '#3498db',
+    marginRight: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#e74c3c',
+    marginLeft: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
